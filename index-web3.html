@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.2.2/web3.min.js"></script>
+    <title>Document</title>
+</head>
+<body>
+    <p>Please log in using your MetaMask wallet.</p>
+    <button id="connect">Connect to MetaMask</button>
+    <p id="connectedAddress" style="display: none;">Connected address: <span></span></p>
+
+    <div id="candidates"></div>
+</body>
+<script>
+    const abi = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"_candidateId","type":"uint256"}],"name":"VoteSubmitted","type":"event"},{"inputs":[{"internalType":"string","name":"_name","type":"string"}],"name":"addCandidate","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"getCandidates","outputs":[{"components":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"string","name":"name","type":"string"},{"internalType":"uint256","name":"votes","type":"uint256"}],"internalType":"struct SimpleElection.Candidate[]","name":"","type":"tuple[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_id","type":"uint256"}],"name":"vote","outputs":[],"stateMutability":"nonpayable","type":"function"}]
+    const address = "0xe4d4caf259ecc8b96257a43bbeaf15ebed065872"
+
+    $('#connect').click(async function () {
+        if (window.ethereum) {
+            let addresses = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            window.web3 = new Web3(window.ethereum);
+
+            console.log(addresses);
+            $('#connect').hide();
+            $('#connectedAddress').css('display', 'block');
+            $('#connectedAddress > span').html(addresses[0]);
+
+            getCandidates();
+        }
+        
+    })
+
+    async function getCandidates() {
+        const contract = new web3.eth.Contract(abi, address);
+        let candidates = await contract.methods.getCandidates().call();
+        console.log(candidates)
+
+        let content = '';
+        for (let candidate of candidates) {
+            content += `
+                <p>
+                    <b>${candidate.name}</b>
+                    <br>
+                    Votes: ${candidate.votes}
+                    <br>
+                    <button onclick="vote(${candidate.id})">Vote</button>
+                </p>
+            `
+        }
+        $('#candidates').html(content);
+
+        contract.events.VoteSubmitted()
+            .on('data', function (event) {
+                console.log(event);
+                getCandidates();
+        })
+
+    }
+
+    async function vote(id) {
+        const contract = new web3.eth.Contract(abi, address);
+        let addresses = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+        contract.methods.vote(id).send({ from: addresses[0] }).then(function (result) {	
+            console.log(result);
+        })
+    }
+</script>
+</html>
